@@ -23,6 +23,7 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 
+	implementation 'org.apache.commons:commons-lang3:3.8.1'
 	implementation 'org.mariadb.jdbc:mariadb-java-client:2.4.1'
 	implementation 'org.bouncycastle:bcpkix-jdk15on:1.61'
 }
