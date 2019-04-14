@@ -8,31 +8,37 @@ import java.io.Serializable;
 import java.util.Objects;
 
 @Entity(name = "user_member")
-public class JpaUserMember {
+public class JpaUserMember extends JpaGroupMember {
 
     @EmbeddedId
-    private UserMemberPK groupUserMemberPK;
+    private UserMemberPK userMemberPK;
 
     @ManyToOne
     @JoinColumn(name="user_id", insertable=false, updatable=false)
     private JpaUser member;
 
+    public JpaUserMember(){}
+
+    public JpaUserMember(UserMemberPK userMemberPK){
+        this.userMemberPK = userMemberPK;
+    }
+
     public UserDAO getMember() {
-        return member;
+        return this.userMemberPK.member;
     }
 
     public void setMember(UserDAO member) {
-        this.member = (JpaUser) member;
+        this.userMemberPK.member = (JpaUser) member;
     }
 
     @Embeddable
     public static class UserMemberPK implements Serializable {
 
-        @ManyToOne
+        @ManyToOne(cascade = CascadeType.PERSIST)
         @JoinColumn(name="group_id")
         private JpaAccessGroup group;
 
-        @ManyToOne
+        @ManyToOne(cascade = CascadeType.PERSIST)
         @JoinColumn(name="user_id")
         private JpaUser member;
 

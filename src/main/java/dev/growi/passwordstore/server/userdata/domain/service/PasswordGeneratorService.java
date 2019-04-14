@@ -7,6 +7,6 @@ import org.springframework.stereotype.Service;
 public class PasswordGeneratorService {
 
     public String generate(){
-        return RandomStringUtils.randomPrint(10);
+        return RandomStringUtils.randomPrint(25);
     }
 }

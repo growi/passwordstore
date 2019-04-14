@@ -1,8 +1,11 @@
 package dev.growi.passwordstore.server.userdata.dao.model;
 
+import dev.growi.passwordstore.server.userdata.dao.impl.jpa.model.JpaUserMember;
 import dev.growi.passwordstore.server.userdata.domain.model.IdWrapper;
 
 import javax.crypto.EncryptedPrivateKeyInfo;
+import java.io.IOException;
+import java.util.Collection;
 
 public interface UserDAO extends PrincipalDAO {
 
@@ -13,8 +16,6 @@ public interface UserDAO extends PrincipalDAO {
     void setUserName(String userName);
 
     String getPassword();
-
-    void setPassword(String password);
 
     boolean isAccountExpired();
 
@@ -28,8 +29,10 @@ public interface UserDAO extends PrincipalDAO {
 
     void isCredentialsExpired(boolean credentialsExpired);
 
-    EncryptedPrivateKeyInfo getPrivateKey();
+    byte[] getPrivateKey();
 
-    void setPrivateKey(EncryptedPrivateKeyInfo privateKey);
+    void setPrivateKey(byte[] privateKey);
+
+    Collection<JpaUserMember> getMemberships();
 
 }

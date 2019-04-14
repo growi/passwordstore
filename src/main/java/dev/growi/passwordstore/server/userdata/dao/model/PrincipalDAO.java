@@ -1,6 +1,9 @@
 package dev.growi.passwordstore.server.userdata.dao.model;
 
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
 import java.time.Instant;
 
 public interface PrincipalDAO {
@@ -9,9 +12,9 @@ public interface PrincipalDAO {
 
     void isEnabled(boolean enabled);
 
-    PublicKey getPublicKey();
+    byte[] getPublicKey();
 
-    void setPublicKey(PublicKey publicKey);
+    void setPublicKey(byte[] publicKey);
 
     UserDAO getCreatedByUser();
 

@@ -3,11 +3,7 @@ package dev.growi.passwordstore.server.userdata.dao.impl.jpa.model;
 import dev.growi.passwordstore.server.userdata.dao.model.PrincipalDAO;
 import dev.growi.passwordstore.server.userdata.dao.model.UserDAO;
 
-import javax.persistence.Column;
-import javax.persistence.Lob;
-import javax.persistence.ManyToOne;
-import javax.persistence.MappedSuperclass;
-import java.security.PublicKey;
+import javax.persistence.*;
 import java.time.Instant;
 
 @MappedSuperclass
@@ -38,13 +34,13 @@ public class JpaPrincipal implements PrincipalDAO {
     }
 
     @Override
-    public PublicKey getPublicKey() {
-        return null;
+    public byte[] getPublicKey(){
+        return this.publicKey;
     }
 
     @Override
-    public void setPublicKey(PublicKey publicKey) {
-
+    public void setPublicKey(byte[] publicKey) {
+        this.publicKey = publicKey;
     }
 
     @Override

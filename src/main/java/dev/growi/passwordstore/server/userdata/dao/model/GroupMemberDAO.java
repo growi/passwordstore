@@ -21,9 +21,9 @@ public interface GroupMemberDAO {
 
     void setSecret(byte[] secret);
 
-    EncryptedPrivateKeyInfo getGroupKey();
+    byte[] getGroupKey();
 
-    void setGroupKey(EncryptedPrivateKeyInfo groupKey);
+    void setGroupKey(byte[] groupKey);
 
     UserDAO getCreatedByUser();
 
@@ -33,11 +33,12 @@ public interface GroupMemberDAO {
 
     void setCreatedStamp(Instant createdStamp);
 
-    UserDAO getUpdatedByUser();
+    UserDAO getLastUpdatedByUser();
 
-    void setUpdatedByUsr(UserDAO updatedByuser);
+    void setLastUpdatedByUser(UserDAO updatedByuser);
 
     Instant getLastUpdatedStamp();
 
     void setLastUpdatedStamp(Instant lastUpdatedStamp);
+
 }

@@ -4,9 +4,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.*;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.PBEParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.security.*;
 import java.security.spec.*;
 
@@ -14,50 +17,63 @@ import java.security.spec.*;
 public class CryptographyService {
 
     @Value("${passwordstore.security.rsa.key.size:2048}")
-    private int keySize;
+    private int rsaKeySize;
 
     @Value("${passwordstore.security.pbe.schema:PBEWITHSHA256AND256BITAES-CBC-BC}")
     private String pbeSchema;
+
+    @Value("${passwordstore.security.aes.cypher:AES/GCM/NoPadding}")
+    private String aesCyper;
+
+    @Value("${passwordstore.security.aes.key.size:128}")
+    private int aesKeySize;
 
     public KeyPair generateRSAKeyPair() throws NoSuchAlgorithmException, NoSuchProviderException {
 
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA", "BC");
 
-        generator.initialize(keySize, SecureRandom.getInstanceStrong());
-        KeyPair keyPair = generator.generateKeyPair();
-
-        return keyPair;
+        generator.initialize(rsaKeySize, SecureRandom.getInstanceStrong());
+        return generator.generateKeyPair();
     }
 
-    public PublicKey createRSAPublicKey(byte[] bytes) throws InvalidKeySpecException, NoSuchProviderException, NoSuchAlgorithmException {
+    public PublicKey createRSAPublicKey(byte[] bytes) throws InvalidKeySpecException, NoSuchProviderException,
+            NoSuchAlgorithmException {
+
         KeyFactory fact = KeyFactory.getInstance("RSA", "BC");
-        PublicKey publicKey = fact.generatePublic(new X509EncodedKeySpec(bytes));
-
-        return publicKey;
+        return fact.generatePublic(new X509EncodedKeySpec(bytes));
     }
 
-    public PrivateKey createRSAPrivateKey(byte[] bytes) throws NoSuchProviderException, NoSuchAlgorithmException, InvalidKeySpecException {
+    public PrivateKey createRSAPrivateKey(byte[] bytes) throws NoSuchProviderException, NoSuchAlgorithmException,
+            InvalidKeySpecException {
+
         KeyFactory fact = KeyFactory.getInstance("RSA", "BC");
-        PrivateKey privateKey = fact.generatePrivate(new PKCS8EncodedKeySpec(bytes));
-
-        return privateKey;
+        return fact.generatePrivate(new PKCS8EncodedKeySpec(bytes));
     }
 
-    public byte[] rsaEncrypt(PublicKey publicKey, byte[] message) throws NoSuchPaddingException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
+    public byte[] encryptRSA(PublicKey publicKey, byte[] message) throws NoSuchPaddingException,
+            NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, BadPaddingException,
+            IllegalBlockSizeException {
+
         Cipher cipher = Cipher.getInstance("RSA", "BC");
         cipher.init(Cipher.ENCRYPT_MODE, publicKey);
 
         return cipher.doFinal(message);
     }
 
-    public byte[] rsaDecrypt(PrivateKey privateKey, byte [] encrypted) throws NoSuchPaddingException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
+    public byte[] decryptRSA(PrivateKey privateKey, byte[] encrypted) throws NoSuchPaddingException,
+            NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, BadPaddingException,
+            IllegalBlockSizeException {
+
         Cipher cipher = Cipher.getInstance("RSA", "BC");
         cipher.init(Cipher.DECRYPT_MODE, privateKey);
 
         return cipher.doFinal(encrypted);
     }
 
-    public EncryptedPrivateKeyInfo pbeEncrypt(String password, PrivateKey privateKey) throws NoSuchAlgorithmException, BadPaddingException, IllegalBlockSizeException, NoSuchPaddingException, IOException, InvalidParameterSpecException, InvalidKeySpecException, InvalidAlgorithmParameterException, InvalidKeyException {
+    public EncryptedPrivateKeyInfo pbeEncrypt(String password, PrivateKey privateKey) throws NoSuchAlgorithmException,
+            BadPaddingException, IllegalBlockSizeException, NoSuchPaddingException,
+            InvalidParameterSpecException, InvalidKeySpecException, InvalidAlgorithmParameterException,
+            InvalidKeyException {
 
         int count = 20;// hash iteration count
         SecureRandom random = SecureRandom.getInstanceStrong();
@@ -83,10 +99,18 @@ public class CryptographyService {
         algparms.init(pbeParamSpec);
         EncryptedPrivateKeyInfo encinfo = new EncryptedPrivateKeyInfo(algparms, ciphertext);
 
-        return  encinfo;
+        return encinfo;
     }
 
-    public PrivateKey pbeDecrypt(String password, byte[] encrypted) throws IOException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeySpecException, InvalidAlgorithmParameterException, InvalidKeyException {
+    public EncryptedPrivateKeyInfo createPBEKeyInfo(byte[] ciphertext) throws IOException {
+
+        return new EncryptedPrivateKeyInfo(ciphertext);
+
+    }
+
+    public PrivateKey pbeDecrypt(String password, byte[] encrypted) throws IOException, NoSuchPaddingException,
+            NoSuchAlgorithmException, InvalidKeySpecException, InvalidAlgorithmParameterException,
+            InvalidKeyException {
 
         EncryptedPrivateKeyInfo encryptPKInfo = new EncryptedPrivateKeyInfo(encrypted);
         Cipher cipher = Cipher.getInstance(encryptPKInfo.getAlgName());
@@ -100,4 +124,66 @@ public class CryptographyService {
 
         return kf.generatePrivate(pkcs8KeySpec);
     }
+
+    public SecretKey generateAESKey() throws NoSuchAlgorithmException {
+
+        SecureRandom secureRandom = SecureRandom.getInstanceStrong();
+        int byteSize = aesKeySize / 8;
+        byte[] key = new byte[byteSize];
+        secureRandom.nextBytes(key);
+
+        return createAESKey(key);
+    }
+
+    public SecretKey createAESKey(byte[] key){
+        return new SecretKeySpec(key, "AES");
+    }
+
+    public byte[] encryptAES(SecretKey secretKey, byte[] plainText)
+            throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException,
+            InvalidKeyException, BadPaddingException, IllegalBlockSizeException, NoSuchProviderException {
+
+        SecureRandom secureRandom = SecureRandom.getInstanceStrong();
+
+        byte[] iv = new byte[12]; //NEVER REUSE THIS IV WITH SAME KEY
+        secureRandom.nextBytes(iv);
+
+        final Cipher cipher = Cipher.getInstance( aesCyper, "BC");
+        GCMParameterSpec parameterSpec = new GCMParameterSpec(128, iv); //128 bit auth tag length
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey, parameterSpec);
+
+        byte[] cipherText = cipher.doFinal(plainText);
+
+        ByteBuffer byteBuffer = ByteBuffer.allocate(4 + iv.length + cipherText.length);
+        byteBuffer.putInt(iv.length);
+        byteBuffer.put(iv);
+        byteBuffer.put(cipherText);
+        byte[] cipherMessage = byteBuffer.array();
+
+        return cipherMessage;
+    }
+
+    public byte[] decryptAES(SecretKey key, byte[] cipherMessage) throws NoSuchPaddingException,
+            NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException,
+            BadPaddingException, IllegalBlockSizeException {
+
+        ByteBuffer byteBuffer = ByteBuffer.wrap(cipherMessage);
+        int ivLength = byteBuffer.getInt();
+        if(ivLength < 12 || ivLength >= 16) { // check input parameter
+            throw new IllegalArgumentException("invalid iv length");
+        }
+        byte[] iv = new byte[ivLength];
+        byteBuffer.get(iv);
+        byte[] cipherText = new byte[byteBuffer.remaining()];
+        byteBuffer.get(cipherText);
+
+        final Cipher cipher = Cipher.getInstance(aesCyper);
+        cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key.getEncoded(), "AES"),
+                new GCMParameterSpec(128, iv));
+
+        byte[] plainText= cipher.doFinal(cipherText);
+
+        return plainText;
+    }
+
 }

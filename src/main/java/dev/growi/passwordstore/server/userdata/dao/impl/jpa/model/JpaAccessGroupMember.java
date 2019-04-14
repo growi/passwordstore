@@ -7,39 +7,45 @@ import java.io.Serializable;
 import java.util.Objects;
 
 @Entity(name = "access_group_member")
-public class JpaAccessGroupMember {
+public class JpaAccessGroupMember extends JpaGroupMember {
 
     @EmbeddedId
-    private AccessGroupMemberPK groupUserMemberPK;
+    private AccessGroupMemberPK groupMemberPK;
 
     @ManyToOne
     @JoinColumn(name="member_id", insertable=false, updatable=false)
     private JpaAccessGroup member;
 
+    public JpaAccessGroupMember(){}
+
+    public  JpaAccessGroupMember(AccessGroupMemberPK accessGroupMemberPK){
+        this.groupMemberPK = accessGroupMemberPK;
+    }
+
     public JpaAccessGroup getMember() {
-        return member;
+        return this.groupMemberPK.member;
     }
 
     public void setMember(GroupDAO member) {
-        this.member = (JpaAccessGroup) member;
+        this.groupMemberPK.member = (JpaAccessGroup) member;
     }
 
     @Embeddable
     public static class AccessGroupMemberPK implements Serializable {
 
-        @ManyToOne
+        @ManyToOne(cascade = CascadeType.PERSIST)
         @JoinColumn(name="group_id")
         private JpaAccessGroup group;
 
-        @ManyToOne
+        @ManyToOne(cascade = CascadeType.PERSIST)
         @JoinColumn(name="member_id")
         private JpaAccessGroup member;
 
         public AccessGroupMemberPK() {}
 
-        public AccessGroupMemberPK(JpaAccessGroup member, JpaAccessGroup group) {
-            this.member = member;
-            this.group = group;
+        public AccessGroupMemberPK(GroupDAO member, GroupDAO group) {
+            this.member = (JpaAccessGroup) member;
+            this.group = (JpaAccessGroup) group;
         }
 
         public GroupDAO getMember() {

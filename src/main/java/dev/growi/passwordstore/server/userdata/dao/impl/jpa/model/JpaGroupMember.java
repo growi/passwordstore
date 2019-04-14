@@ -5,10 +5,7 @@ import dev.growi.passwordstore.server.userdata.dao.model.GroupMemberDAO;
 import dev.growi.passwordstore.server.userdata.dao.model.PrincipalDAO;
 import dev.growi.passwordstore.server.userdata.dao.model.UserDAO;
 
-import javax.crypto.EncryptedPrivateKeyInfo;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.MappedSuperclass;
+import javax.persistence.*;
 import java.time.Instant;
 
 @MappedSuperclass
@@ -19,12 +16,22 @@ public class JpaGroupMember implements GroupMemberDAO {
     protected JpaAccessGroup group;
 
     private int permissions;
-    private byte[] secret;
-    private byte[] groupKey;
-    private UserDAO createdByUser;
-    private UserDAO lastUpdatedByUser;
     private Instant createdStamp;
     private Instant lastUpdatedStamp;
+
+    @Lob
+    @Column(name = "secret", columnDefinition="BLOB")
+    private byte[] secret;
+
+    @Lob
+    @Column(name = "groupkey", columnDefinition="BLOB")
+    private byte[] groupKey;
+
+    @ManyToOne
+    private JpaUser createdByUser;
+
+    @ManyToOne
+    private JpaUser lastUpdatedByUser;
 
     @Override
     public GroupDAO getGroup() {
@@ -67,13 +74,13 @@ public class JpaGroupMember implements GroupMemberDAO {
     }
 
     @Override
-    public EncryptedPrivateKeyInfo getGroupKey() {
-        return null;
+    public byte[] getGroupKey() {
+        return this.groupKey;
     }
 
     @Override
-    public void setGroupKey(EncryptedPrivateKeyInfo groupKey) {
-
+    public void setGroupKey(byte[] groupKey) {
+        this.groupKey = groupKey;
     }
 
     @Override
@@ -83,7 +90,7 @@ public class JpaGroupMember implements GroupMemberDAO {
 
     @Override
     public void setCreatedByUser(UserDAO createdByUser) {
-        this.createdByUser = createdByUser;
+        this.createdByUser = (JpaUser) createdByUser;
     }
 
     @Override
@@ -97,13 +104,13 @@ public class JpaGroupMember implements GroupMemberDAO {
     }
 
     @Override
-    public UserDAO getUpdatedByUser() {
+    public UserDAO getLastUpdatedByUser() {
         return this.lastUpdatedByUser;
     }
 
     @Override
-    public void setUpdatedByUsr(UserDAO updatedByuser) {
-        this.lastUpdatedByUser = updatedByuser;
+    public void setLastUpdatedByUser(UserDAO updatedByuser) {
+        this.lastUpdatedByUser = (JpaUser) updatedByuser;
     }
 
     @Override

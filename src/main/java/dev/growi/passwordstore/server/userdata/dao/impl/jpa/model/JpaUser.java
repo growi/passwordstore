@@ -2,11 +2,12 @@ package dev.growi.passwordstore.server.userdata.dao.impl.jpa.model;
 
 import dev.growi.passwordstore.server.userdata.dao.model.UserDAO;
 
-import javax.crypto.EncryptedPrivateKeyInfo;
 import dev.growi.passwordstore.server.userdata.domain.model.IdWrapper;
 
 import javax.persistence.*;
 import java.io.Serializable;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity(name = "user")
 public class JpaUser extends JpaPrincipal implements UserDAO {
@@ -20,6 +21,16 @@ public class JpaUser extends JpaPrincipal implements UserDAO {
     private boolean accountExpired;
     private boolean accountLocked;
     private boolean credentialsExpired;
+
+    @OneToMany(cascade=CascadeType.PERSIST, mappedBy="userMemberPK.member")
+    private Set<JpaUserMember> memberships = new HashSet<>();
+
+    public JpaUser(){}
+
+    public JpaUser(String userName, String password){
+        this.userName = userName;
+        this.password = password;
+    }
 
     @Lob
     @Column(name = "privatekey", columnDefinition="BLOB")
@@ -43,11 +54,6 @@ public class JpaUser extends JpaPrincipal implements UserDAO {
     @Override
     public String getPassword() {
         return this.password;
-    }
-
-    @Override
-    public void setPassword(String password) {
-        this.password = password;
     }
 
     @Override
@@ -82,13 +88,18 @@ public class JpaUser extends JpaPrincipal implements UserDAO {
 
 
     @Override
-    public EncryptedPrivateKeyInfo getPrivateKey() {
-        return null;
+    public byte[] getPrivateKey(){
+        return this.privateKey;
     }
 
     @Override
-    public void setPrivateKey(EncryptedPrivateKeyInfo privateKey) {
+    public void setPrivateKey(byte[] privateKey){
+        this.privateKey = privateKey;
+    }
 
+    @Override
+    public Set<JpaUserMember> getMemberships(){
+        return this.memberships;
     }
 
     public class UserId implements IdWrapper<Long>, Serializable {
@@ -108,6 +119,16 @@ public class JpaUser extends JpaPrincipal implements UserDAO {
         @Override
         public void setValue(Long newUserId) {
             userId = newUserId;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return this.getValue() != null && this.getValue().equals(((UserId)obj).getValue());
+        }
+
+        @Override
+        public int hashCode(){
+            return this.getValue() != null ? this.getValue().hashCode() : 0;
         }
     }
 }
