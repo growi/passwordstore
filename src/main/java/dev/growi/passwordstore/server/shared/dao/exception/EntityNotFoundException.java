@@ -5,7 +5,7 @@ public class EntityNotFoundException extends DatasourceExceotion {
     private String entityName = "";
     private String query = "";
 
-    EntityNotFoundException(String entityName, String query){
+    public EntityNotFoundException(String entityName, String query){
         this.entityName = entityName;
         this.query = query;
     }
