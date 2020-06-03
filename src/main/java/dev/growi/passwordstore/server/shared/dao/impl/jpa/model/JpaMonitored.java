@@ -1,6 +1,6 @@
-package dev.growi.passwordstore.server.shared.impl.jpa;
+package dev.growi.passwordstore.server.shared.dao.impl.jpa.model;
 
-import dev.growi.passwordstore.server.shared.dao.MonitoredDAO;
+import dev.growi.passwordstore.server.shared.dao.model.MonitoredDAO;
 import dev.growi.passwordstore.server.userdata.dao.impl.jpa.model.JpaUser;
 import dev.growi.passwordstore.server.userdata.dao.model.UserDAO;
 

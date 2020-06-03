@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.EncryptedPrivateKeyInfo;
 import java.io.IOException;
+import java.security.Key;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Base64;
@@ -11,64 +12,40 @@ import java.util.Base64;
 @Service
 public class EncoderService {
 
+    private static final String PADDING = "-----";
+    private static final String ENCRYPTED_PRIVATE_KEY = "ENCRYPTED PRIVATE KEY";
+    private static final String PUBLIC_KEY = "PUBLIC KEY";
+    private static final String PRIVATE_KEY = "PRIVATE KEY";
+    private static final String BEGIN = "BEGIN";
+    private static final String END = "END";
+
     public String armorKey(EncryptedPrivateKeyInfo key) throws IOException {
-
-        String padding = "-----";
-        String begin = "BEGIN ENCRYPTED PRIVATE KEY";
-        String end = "END ENCRYPTED PRIVATE KEY";
-
-        StringBuilder sb = new StringBuilder();
-        sb.append(padding);
-        sb.append(begin);
-        sb.append(padding);
-        sb.append("\n");
-        sb.append(toBase64Block(key.getEncoded(), 64));
-        sb.append("\n");
-        sb.append(padding);
-        sb.append(end);
-        sb.append(padding);
-
-        return sb.toString();
-
+        return armor(ENCRYPTED_PRIVATE_KEY, key.getEncoded());
     }
 
     public String armorKey(PublicKey key) {
-
-        String padding = "-----";
-        String begin = "BEGIN PUBLIC KEY";
-        String end = "END PUBLIC KEY";
-
-        StringBuilder sb = new StringBuilder();
-        sb.append(padding);
-        sb.append(begin);
-        sb.append(padding);
-        sb.append("\n");
-        sb.append(toBase64Block(key.getEncoded(), 64));
-        sb.append("\n");
-        sb.append(padding);
-        sb.append(end);
-        sb.append(padding);
-
-        return sb.toString();
-
+        return armor(PUBLIC_KEY, key.getEncoded());
     }
 
     public String armorKey(PrivateKey key)  {
+        return armor(PRIVATE_KEY, key.getEncoded());
+    }
 
-        String padding = "-----";
-        String begin = "BEGIN PRIVATE KEY";
-        String end = "END PRIVATE KEY";
+    private String armor(String spec, byte[] key){
 
         StringBuilder sb = new StringBuilder();
-        sb.append(padding);
-        sb.append(begin);
-        sb.append(padding);
+        sb.append(PADDING);
+        sb.append(BEGIN);
+        sb.append(' ');
+        sb.append(spec);
+        sb.append(PADDING);
         sb.append("\n");
-        sb.append(toBase64Block(key.getEncoded(), 64));
+        sb.append(toBase64Block(key, 64));
         sb.append("\n");
-        sb.append(padding);
-        sb.append(end);
-        sb.append(padding);
+        sb.append(PADDING);
+        sb.append(END);
+        sb.append(' ');
+        sb.append(PADDING);
 
         return sb.toString();
 

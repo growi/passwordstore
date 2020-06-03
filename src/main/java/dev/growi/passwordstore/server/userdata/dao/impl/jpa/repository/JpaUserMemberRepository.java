@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Set;
 
-public interface JpaUserMemberRepository extends JpaRepository<JpaUserMember, JpaUserMember.UserMemberPK> {
-
+public interface JpaUserMemberRepository // extends JpaRepository<JpaUserMember, JpaUserMember.UserMemberPK> {
+{
     Set<JpaUserMember> findAllByGroup(JpaAccessGroup group);
 }

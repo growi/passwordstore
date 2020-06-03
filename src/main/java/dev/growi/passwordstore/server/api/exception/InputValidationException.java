@@ -1,8 +1,8 @@
 package dev.growi.passwordstore.server.api.exception;
 
-public class InoutValidationException extends RuntimeException {
+public class InputValidationException extends RuntimeException {
 
-    InoutValidationException(String message){
+    public InputValidationException(String message){
         super(message);
     }
 }

@@ -1,4 +1,4 @@
-package dev.growi.passwordstore.server.userdata.domain.service;
+package dev.growi.passwordstore.server.shared.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -23,7 +23,7 @@ public class CryptographyService {
     private String pbeSchema;
 
     @Value("${passwordstore.security.aes.cypher:AES/GCM/NoPadding}")
-    private String aesCyper;
+    private String aesCypher;
 
     @Value("${passwordstore.security.aes.key.size:128}")
     private int aesKeySize;
@@ -148,7 +148,7 @@ public class CryptographyService {
         byte[] iv = new byte[12]; //NEVER REUSE THIS IV WITH SAME KEY
         secureRandom.nextBytes(iv);
 
-        final Cipher cipher = Cipher.getInstance( aesCyper, "BC");
+        final Cipher cipher = Cipher.getInstance(aesCypher, "BC");
         GCMParameterSpec parameterSpec = new GCMParameterSpec(128, iv); //128 bit auth tag length
         cipher.init(Cipher.ENCRYPT_MODE, secretKey, parameterSpec);
 
@@ -177,7 +177,7 @@ public class CryptographyService {
         byte[] cipherText = new byte[byteBuffer.remaining()];
         byteBuffer.get(cipherText);
 
-        final Cipher cipher = Cipher.getInstance(aesCyper);
+        final Cipher cipher = Cipher.getInstance(aesCypher);
         cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key.getEncoded(), "AES"),
                 new GCMParameterSpec(128, iv));
 

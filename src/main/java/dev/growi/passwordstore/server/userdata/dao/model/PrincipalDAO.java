@@ -1,12 +1,13 @@
 package dev.growi.passwordstore.server.userdata.dao.model;
 
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.PublicKey;
-import java.security.spec.InvalidKeySpecException;
-import java.time.Instant;
+import dev.growi.passwordstore.server.shared.dao.model.MonitoredDAO;
+import dev.growi.passwordstore.server.userdata.dao.impl.jpa.model.JpaGroupMember;
 
-public interface PrincipalDAO {
+import java.util.Set;
+
+public interface PrincipalDAO extends MonitoredDAO {
+
+    Long getId();
 
     boolean isEnabled();
 
@@ -16,20 +17,7 @@ public interface PrincipalDAO {
 
     void setPublicKey(byte[] publicKey);
 
-    UserDAO getCreatedByUser();
+    Set<JpaGroupMember> getMemberships();
 
-    void setCreatedByUser(UserDAO createdByUser);
-
-    Instant getCreatedStamp();
-
-    void setCreatedStamp(Instant createdStamp);
-
-    UserDAO getLastUpdatedByUser();
-
-    void setLastUpdatedByUser(UserDAO lastUpdatedByUser);
-
-    Instant getLastUpdatedStamp();
-
-    void setLastUpdatedStamp(Instant lastUpdatedStamp);
-
+    void setMemberships(Set<JpaGroupMember> memberships);
 }

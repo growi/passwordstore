@@ -1,23 +1,21 @@
 package dev.growi.passwordstore.server.carddata.dao.impl.jpa.model;
 
-import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.Lob;
 
-@Entity( name = "card_encrypted_content")
-public abstract class JpaTextContent extends JpaContent {
+@Entity( name = "card_file_content")
+public class JpaFileContent extends JpaByteContent {
 
-    @Lob
-    @Column(columnDefinition="BLOB")
-    private byte[] value;
-
-    @Override
-    public byte[] getValue() {
-        return value;
+    public JpaFileContent(JpaByteContent.ByteArrayContentWrapper contentWrapper){
+        super(contentWrapper);
     }
 
     @Override
-    public void setValue(byte[] value) {
-        this.value = value;
+    public ContentType getType() {
+        return ContentType.FILE;
+    }
+
+    @Override
+    public boolean isEncrypted() {
+        return false;
     }
 }

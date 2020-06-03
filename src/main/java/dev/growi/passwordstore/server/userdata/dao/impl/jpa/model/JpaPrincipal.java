@@ -1,27 +1,38 @@
 package dev.growi.passwordstore.server.userdata.dao.impl.jpa.model;
 
+import dev.growi.passwordstore.server.carddata.dao.impl.jpa.model.JpaAccessControlEntry;
+import dev.growi.passwordstore.server.shared.dao.impl.jpa.model.JpaMonitored;
 import dev.growi.passwordstore.server.userdata.dao.model.PrincipalDAO;
-import dev.growi.passwordstore.server.userdata.dao.model.UserDAO;
 
 import javax.persistence.*;
-import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 
-@MappedSuperclass
-public class JpaPrincipal implements PrincipalDAO {
+@Entity(name = "principal")
+@Inheritance(strategy = InheritanceType.JOINED)
+public class JpaPrincipal extends JpaMonitored implements PrincipalDAO {
+
+    @Id
+    @GeneratedValue(strategy=GenerationType.IDENTITY)
+    private Long id;
+
+    @OneToMany(mappedBy="principal")
+    private Set<JpaAccessControlEntry> aces;
 
     private boolean enabled;
-    private Instant createdStamp;
-    private Instant lastUpdatedStamp;
+
+    @OneToMany(cascade=CascadeType.PERSIST, mappedBy="groupMemberPK.member")
+    private Set<JpaGroupMember> memberships = new HashSet<>();
 
     @Lob
     @Column(name = "publickey", columnDefinition="BLOB")
     private byte[] publicKey;
 
-    @ManyToOne
-    private JpaUser createdByUser;
+    @Override
+    public Long getId() {
+        return this.id;
+    }
 
-    @ManyToOne
-    private JpaUser lastUpdatedByUser;
 
     @Override
     public boolean isEnabled() {
@@ -44,42 +55,12 @@ public class JpaPrincipal implements PrincipalDAO {
     }
 
     @Override
-    public UserDAO getCreatedByUser() {
-        return this.createdByUser;
+    public Set<JpaGroupMember> getMemberships() {
+        return memberships;
     }
 
     @Override
-    public void setCreatedByUser(UserDAO createdByUser) {
-        this.createdByUser = (JpaUser) createdByUser;
-    }
-
-    @Override
-    public Instant getCreatedStamp() {
-        return this.createdStamp;
-    }
-
-    @Override
-    public void setCreatedStamp(Instant createdStamp) {
-        this.createdStamp = createdStamp;
-    }
-
-    @Override
-    public UserDAO getLastUpdatedByUser() {
-        return this.lastUpdatedByUser;
-    }
-
-    @Override
-    public void setLastUpdatedByUser(UserDAO lastUpdatedByUser) {
-        this.lastUpdatedByUser = (JpaUser) lastUpdatedByUser;
-    }
-
-    @Override
-    public Instant getLastUpdatedStamp() {
-        return this.lastUpdatedStamp;
-    }
-
-    @Override
-    public void setLastUpdatedStamp(Instant lastUpdatedStamp) {
-        this.lastUpdatedStamp = lastUpdatedStamp;
+    public void setMemberships(Set<JpaGroupMember> memberships) {
+        this.memberships = memberships;
     }
 }

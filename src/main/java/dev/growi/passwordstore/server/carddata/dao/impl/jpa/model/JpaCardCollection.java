@@ -1,13 +1,13 @@
 package dev.growi.passwordstore.server.carddata.dao.impl.jpa.model;
 
-import dev.growi.passwordstore.server.carddata.dao.model.CollectionDAO;
+import dev.growi.passwordstore.server.carddata.dao.model.CardCollectionDAO;
 
 import javax.persistence.*;
 import java.util.HashSet;
 import java.util.Set;
 
 @Entity(name = "collection")
-public class JpaCollection extends JpaRestricted implements CollectionDAO {
+public class JpaCardCollection extends JpaRestricted implements CardCollectionDAO {
 
     private String title;
 

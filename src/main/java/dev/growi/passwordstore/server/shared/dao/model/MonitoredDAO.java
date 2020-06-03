@@ -1,10 +1,11 @@
-package dev.growi.passwordstore.server.shared.dao;
+package dev.growi.passwordstore.server.shared.dao.model;
 
+import dev.growi.passwordstore.server.core.base.dao.Dao;
 import dev.growi.passwordstore.server.userdata.dao.model.UserDAO;
 
 import java.time.Instant;
 
-public interface MonitoredDAO {
+public interface MonitoredDAO extends Dao {
 
     UserDAO getCreatedByUser();
 

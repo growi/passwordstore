@@ -1,6 +1,8 @@
-package dev.growi.passwordstore.server.userdata.dao.exception;
+package dev.growi.passwordstore.server.shared.dao.exception;
 
-public class EntityNotFoundException extends DatasourceExceotion {
+import dev.growi.passwordstore.server.userdata.dao.exception.DatasourceException;
+
+public class EntityNotFoundException extends DatasourceException {
 
     private String entityName = "";
     private String query = "";

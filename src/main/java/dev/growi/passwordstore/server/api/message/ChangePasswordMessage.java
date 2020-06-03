@@ -1,6 +1,6 @@
 package dev.growi.passwordstore.server.api.message;
 
-public class NewPassword {
+public class ChangePasswordMessage {
 
     private String oldPassword;
     private String newPassword;

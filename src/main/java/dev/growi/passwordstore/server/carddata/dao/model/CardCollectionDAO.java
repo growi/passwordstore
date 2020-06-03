@@ -5,7 +5,7 @@ import dev.growi.passwordstore.server.shared.dao.model.MonitoredDAO;
 
 import java.util.Set;
 
-public interface CollectionDAO extends MonitoredDAO {
+public interface CardCollectionDAO extends MonitoredDAO {
     Long getId();
 
     void setId(Long id);

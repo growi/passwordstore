@@ -1,7 +1,7 @@
 package dev.growi.passwordstore.server;
 
 
-import dev.growi.passwordstore.server.userdata.dao.exception.CryptographyException;
+import dev.growi.passwordstore.server.shared.service.exception.CryptographyException;
 import dev.growi.passwordstore.server.userdata.dao.provider.UserDataProvider;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.slf4j.Logger;
@@ -15,7 +15,11 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
+import org.springframework.security.web.util.matcher.RegexRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
+import javax.servlet.http.HttpServletRequest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Security;
 
@@ -46,6 +50,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
+        final String API_URL = "/api/**";
+
         http
                 .authorizeRequests()
                 .antMatchers("/", "/home").permitAll()
@@ -58,7 +64,11 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .passwordParameter("password")
                 .and()
                 .logout()
-                .permitAll();
+                .permitAll()
+                .and()
+                .csrf()
+                .ignoringAntMatchers(API_URL);
+
     }
 
     @Autowired

@@ -7,7 +7,7 @@ import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Objects;
 
-@Entity(name = "user_member")
+//@Entity(name = "user_member")
 public class JpaUserMember extends JpaGroupMember {
 
     @EmbeddedId

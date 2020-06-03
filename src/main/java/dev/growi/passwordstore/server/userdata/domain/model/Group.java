@@ -3,7 +3,7 @@ package dev.growi.passwordstore.server.userdata.domain.model;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
-import dev.growi.passwordstore.server.userdata.dao.exception.CryptographyException;
+import dev.growi.passwordstore.server.shared.service.exception.CryptographyException;
 import dev.growi.passwordstore.server.userdata.dao.exception.GroupMemberNotFoundException;
 import dev.growi.passwordstore.server.userdata.dao.exception.GroupNotFoundException;
 import dev.growi.passwordstore.server.userdata.dao.exception.UserNotFoundException;
@@ -13,10 +13,8 @@ import dev.growi.passwordstore.server.userdata.dao.model.PrincipalDAO;
 import dev.growi.passwordstore.server.userdata.dao.model.UserDAO;
 import dev.growi.passwordstore.server.userdata.dao.provider.GroupDataProvider;
 import dev.growi.passwordstore.server.userdata.dao.provider.UserDataProvider;
-import dev.growi.passwordstore.server.userdata.domain.service.CryptographyService;
-import org.springframework.beans.factory.annotation.Autowire;
+import dev.growi.passwordstore.server.shared.service.CryptographyService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Configurable;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import javax.crypto.BadPaddingException;
@@ -32,8 +30,7 @@ import java.util.stream.Collectors;
 @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class,
         property = "groupName")
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@Configurable(preConstruction = true, dependencyCheck = true, autowire = Autowire.BY_TYPE)
-public class Group extends Principal {
+public class Group extends Principal<Group, GroupDAO> {
 
     @Autowired
     private GroupDataProvider groupDataProvider;
@@ -46,10 +43,80 @@ public class Group extends Principal {
 
     private String groupName;
 
-    public Group(GroupDAO groupDAO)  {
-        super(groupDAO);
-        this.id = groupDAO.getGroupId();
-        this.groupName = groupDAO.getGroupName();
+    public static Group load(Long id) throws GroupNotFoundException {
+        Group group = new Group();
+        group.setProperties(group.groupDataProvider.findByGroupId(id));
+
+        return group;
+    }
+
+    public static Group load(String name) throws GroupNotFoundException {
+        Group group = new Group();
+        group.setProperties(group.groupDataProvider.findByGroupName(name));
+
+        return group;
+    }
+
+    public static Group create(Group template) throws GroupNotFoundException, UserNotFoundException, CryptographyException {
+        Group group = create(template.getGroupName());
+        group.update(group, true);
+
+        return group.save();
+    }
+
+    public static Group create(String name) throws UserNotFoundException, CryptographyException{
+        Group group = new Group();
+        group.setProperties(group.groupDataProvider.createGroup(name));
+
+        return group;
+    }
+
+    private Group(){}
+
+    public Group(GroupDAO groupDAO) {
+        setProperties(groupDAO);
+    }
+
+    @Override
+    protected void setProperties(GroupDAO groupAO) {
+        super.setProperties(groupAO);
+        this.id = groupAO.getId();
+        this.groupName = groupAO.getGroupName();
+    }
+
+    // id and monitored fields wont be updated!
+    @Override
+    public void update(Group template, boolean ignoreNull){
+        super.update(template, ignoreNull);
+        if(!ignoreNull || template.getGroupName() != null) this.groupName = template.getGroupName();
+    }
+
+    @Override
+    protected GroupDAO getDao() throws GroupNotFoundException {
+        GroupDAO dao = groupDataProvider.findByGroupId(this.getId());
+        updateDao(dao);
+
+        return dao;
+    }
+
+    // id and monitored fields wont be updated!
+    @Override
+    protected GroupDAO updateDao(GroupDAO dao) {
+        super.updateDao(dao);
+        dao.setGroupName(this.getGroupName());
+
+        return dao;
+    }
+
+    @Override
+    public Group save() throws GroupNotFoundException, UserNotFoundException {
+        this.setProperties(groupDataProvider.save(getDao()));
+        return this;
+    }
+
+    @Override
+    public void delete() {
+        userDataProvider.deleteById(this.getId());
     }
 
     public String getGroupName() {
@@ -57,7 +124,6 @@ public class Group extends Principal {
     }
 
     public Set<Principal> getMembers() throws GroupNotFoundException {
-
         return groupDataProvider.findGroupMembersByGroupId(this.getId())
                 .stream()
                 .map(member -> member.getMember())
@@ -68,29 +134,29 @@ public class Group extends Principal {
     public void addMember(User member, int permissions, UserDetails activeUser, String password)
             throws GroupNotFoundException, UserNotFoundException, CryptographyException {
 
-        UserDAO activeUserDAO = userDataProvider.findUserByUserName(activeUser.getUsername());
-        UserDAO memberDAO = userDataProvider.findUserById(member.getId());
+        UserDAO activeUserDAO = userDataProvider.findByUserName(activeUser.getUsername());
+        UserDAO memberDAO = userDataProvider.findById(member.getId());
         GroupDAO groupDAO = groupDataProvider.findByGroupId(this.getId());
 
         PrivateKey privateKey = extractKey(activeUserDAO, password);
-        groupDataProvider.createUserMember(groupDAO, privateKey, memberDAO, permissions, activeUser);
+        groupDataProvider.createGroupMember(groupDAO, privateKey, memberDAO, permissions);
     }
 
     public void addMember(Group member, int permissions, UserDetails activeUser, String password)
             throws GroupNotFoundException, UserNotFoundException, CryptographyException {
 
-        UserDAO activeUserDAO = userDataProvider.findUserByUserName(activeUser.getUsername());
+        UserDAO activeUserDAO = userDataProvider.findByUserName(activeUser.getUsername());
         GroupDAO memberDAO = groupDataProvider.findByGroupId(member.getId());
         GroupDAO groupDAO = groupDataProvider.findByGroupId(this.getId());
 
         PrivateKey privateKey = extractKey(activeUserDAO, password);
-        groupDataProvider.createGroupMember(groupDAO, privateKey, memberDAO, permissions, activeUser);
+        groupDataProvider.createGroupMember(groupDAO, privateKey, memberDAO, permissions);
     }
 
     public void removeMember(User userMember) throws GroupNotFoundException, UserNotFoundException, GroupMemberNotFoundException {
 
         GroupDAO groupDAO = groupDataProvider.findByGroupId(this.getId());
-        UserDAO userMemberDAO = userDataProvider.findUserById(userMember.getId());
+        UserDAO userMemberDAO = userDataProvider.findById(userMember.getId());
         GroupMemberDAO member = groupDataProvider.findGroupMemberById(userMemberDAO, groupDAO);
         groupDataProvider.removeUserMember(member);
     }
@@ -130,38 +196,38 @@ public class Group extends Principal {
     private List<GroupDAO> searchBFS(GroupDAO start, UserDAO user) {
 
         Map<GroupDAO, GroupDAO> parents = new HashMap<>();
-        Set<IdWrapper<?>> visited = new HashSet<>();
+        Set<Long> visited = new HashSet<>();
         Queue<GroupDAO> queue = new LinkedList<>();
 
-        queue.add(start);                                       // mit Start-Knoten beginnen
-        visited.add(start.getGroupId());
-        while(!queue.isEmpty() ) {                              // solange queue nicht leer ist
-            GroupDAO node = queue.poll();                       // erstes Element von der queue nehmen
+        queue.add(start);
+        visited.add(start.getId());
+        while (!queue.isEmpty()) {
+            GroupDAO node = queue.poll();
 
-            for(GroupMemberDAO child : node.getMembers()){
-                if(((UserDAO)child.getMember()).getUserId().equals(user.getUserId())){
-                    return buildPath(parents, node);
-                }
-            }
-
-            for(GroupMemberDAO child : node.getMemberGroups()) {                        // alle Nachfolge-Knoten, …
-                if (!visited.contains(((GroupDAO)child.getMember()).getGroupId())) {    // … die noch nicht besucht wurden …
-                    parents.put((GroupDAO)child.getMember(), node);
-                    queue.add((GroupDAO)child.getMember());                             // … zur queue hinzufügen…
-                    visited.add(((GroupDAO)child.getMember()).getGroupId());            // … und als bereits gesehen markieren
+            for (GroupMemberDAO child : node.getMembers()) {
+                if (UserDAO.class.isAssignableFrom(child.getMember().getClass())) {
+                    if (((UserDAO) child.getMember()).getId().equals(user.getId())) {
+                        return buildPath(parents, node);
+                    }
+                } else {
+                    if (!visited.contains(((GroupDAO) child.getMember()).getId())) {
+                        parents.put((GroupDAO) child.getMember(), node);
+                        queue.add((GroupDAO) child.getMember());
+                        visited.add(((GroupDAO) child.getMember()).getId());
+                    }
                 }
             }
         }
-        return null;                                                    // Knoten kann nicht erreicht werden
+        return null;
     }
 
-    private List<GroupDAO> buildPath(Map<GroupDAO, GroupDAO> parents, GroupDAO goal){
+    private List<GroupDAO> buildPath(Map<GroupDAO, GroupDAO> parents, GroupDAO goal) {
 
         List<GroupDAO> path = new ArrayList<>();
         GroupDAO child = goal;
 
         path.add(child);
-        while(parents.containsKey(child)){
+        while (parents.containsKey(child)) {
             child = parents.get(child);
             path.add(child);
         }

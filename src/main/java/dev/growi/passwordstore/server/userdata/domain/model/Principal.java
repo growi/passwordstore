@@ -1,9 +1,12 @@
 package dev.growi.passwordstore.server.userdata.domain.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import dev.growi.passwordstore.server.userdata.dao.exception.CryptographyException;
+import dev.growi.passwordstore.server.core.base.dao.Dao;
+import dev.growi.passwordstore.server.core.base.mapping.annotation.MappedValue;
+import dev.growi.passwordstore.server.shared.domain.Monitored;
+import dev.growi.passwordstore.server.shared.service.exception.CryptographyException;
 import dev.growi.passwordstore.server.userdata.dao.model.PrincipalDAO;
-import dev.growi.passwordstore.server.userdata.domain.service.CryptographyService;
+import dev.growi.passwordstore.server.shared.service.CryptographyService;
 import org.springframework.beans.factory.annotation.Autowire;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
@@ -15,25 +18,27 @@ import java.security.spec.InvalidKeySpecException;
 import java.time.Instant;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@Configurable(preConstruction = true, dependencyCheck = true, autowire = Autowire.BY_TYPE)
-public abstract class Principal {
+@Configurable(preConstruction = true, dependencyCheck = false, autowire = Autowire.BY_TYPE)
+public abstract class Principal<M extends Principal, D extends PrincipalDAO> extends Monitored<M, D> {
 
     @Autowired
-    CryptographyService cryptographyService;
+    protected CryptographyService cryptographyService;
 
-    protected IdWrapper<?> id = null;
+    protected Long id = null;
     private PublicKey publicKey;
-    private String createdByUser;
-    private Instant createdStamp;
-    private String lastUpdatedByUser;
-    private Instant lastUpdatedStamp;
 
-    Principal(PrincipalDAO principalDAO) {
+    protected Principal(){
 
-        this.createdByUser = principalDAO.getCreatedByUser() != null ? principalDAO.getCreatedByUser().getUserName() : "";
-        this.createdStamp = principalDAO.getCreatedStamp();
-        this.lastUpdatedByUser = principalDAO.getLastUpdatedByUser() != null ? principalDAO.getLastUpdatedByUser().getUserName() : "";
-        this.lastUpdatedStamp = principalDAO.getLastUpdatedStamp();
+    }
+
+    Principal(D principalDAO) {
+        super();
+        setProperties(principalDAO);
+    }
+
+    @Override
+    protected void setProperties(D principalDAO){
+        super.setProperties(principalDAO);
         try {
             this.publicKey = cryptographyService.createRSAPublicKey(principalDAO.getPublicKey());
         } catch (InvalidKeySpecException | NoSuchAlgorithmException | NoSuchProviderException e) {
@@ -41,27 +46,22 @@ public abstract class Principal {
         }
     }
 
-    public IdWrapper<?> getId() {
+    @Override
+    public void update(M template, boolean ignoreNull){
+        if(!ignoreNull || template.getPublicKey() != null)  this.publicKey = template.getPublicKey();
+    }
+
+    protected  D updateDao(D dao){
+        dao.setPublicKey(this.publicKey.getEncoded());
+
+        return dao;
+    }
+
+    public Long getId() {
         return this.id;
     }
 
     public PublicKey getPublicKey() {
         return this.publicKey;
-    }
-
-    public String getCreatedByUser() {
-        return this.createdByUser;
-    }
-
-    public Instant getCreatedStamp() {
-        return this.createdStamp;
-    }
-
-    public String getLastUpdatedByUser() {
-        return this.lastUpdatedByUser;
-    }
-
-    public Instant getLastUpdateStamp() {
-        return this.lastUpdatedStamp;
     }
 }

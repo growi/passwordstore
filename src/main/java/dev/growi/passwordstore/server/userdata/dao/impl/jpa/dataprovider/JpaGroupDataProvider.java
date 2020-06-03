@@ -1,38 +1,31 @@
 package dev.growi.passwordstore.server.userdata.dao.impl.jpa.dataprovider;
 
-import dev.growi.passwordstore.server.userdata.dao.exception.CryptographyException;
+import dev.growi.passwordstore.server.core.authentication.AuthenticationFacade;
+import dev.growi.passwordstore.server.shared.service.exception.CryptographyException;
 import dev.growi.passwordstore.server.userdata.dao.exception.GroupMemberNotFoundException;
 import dev.growi.passwordstore.server.userdata.dao.exception.UserNotFoundException;
 import dev.growi.passwordstore.server.userdata.dao.impl.jpa.configuration.JpaDatasourceCondition;
-import dev.growi.passwordstore.server.userdata.dao.impl.jpa.model.JpaAccessGroupMember;
 import dev.growi.passwordstore.server.userdata.dao.impl.jpa.model.JpaGroupMember;
-import dev.growi.passwordstore.server.userdata.dao.impl.jpa.model.JpaUserMember;
-import dev.growi.passwordstore.server.userdata.dao.impl.jpa.repository.JpaAccessGroupMemberRepository;
-import dev.growi.passwordstore.server.userdata.dao.impl.jpa.repository.JpaUserMemberRepository;
-import dev.growi.passwordstore.server.userdata.dao.impl.jpa.repository.JpaUserRepository;
+import dev.growi.passwordstore.server.userdata.dao.impl.jpa.repository.*;
 import dev.growi.passwordstore.server.userdata.dao.model.GroupDAO;
 import dev.growi.passwordstore.server.userdata.dao.model.GroupMemberDAO;
 import dev.growi.passwordstore.server.userdata.dao.model.PrincipalDAO;
 import dev.growi.passwordstore.server.userdata.dao.model.UserDAO;
 import dev.growi.passwordstore.server.userdata.dao.provider.GroupDataProvider;
 import dev.growi.passwordstore.server.userdata.dao.provider.UserDataProvider;
-import dev.growi.passwordstore.server.userdata.domain.model.IdWrapper;
 import dev.growi.passwordstore.server.userdata.dao.exception.GroupNotFoundException;
 import dev.growi.passwordstore.server.userdata.dao.impl.jpa.model.JpaAccessGroup;
-import dev.growi.passwordstore.server.userdata.dao.impl.jpa.repository.JpaAccessGroupRepository;
-import dev.growi.passwordstore.server.userdata.domain.service.CryptographyService;
+import dev.growi.passwordstore.server.shared.service.CryptographyService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Conditional;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.*;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Instant;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -45,19 +38,19 @@ public class JpaGroupDataProvider implements GroupDataProvider {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
+    private AuthenticationFacade authenticationFacade;
+
+    @Autowired
     private CryptographyService cryptographyService;
 
     @Autowired
     private JpaAccessGroupRepository jpaAccessGroupRepository;
 
     @Autowired
-    private JpaAccessGroupMemberRepository jpaAccessGroupMemberRepository;
+    private JpaGroupMemberRepository jpaGroupMemberRepository;
 
     @Autowired
     private JpaUserRepository jpaUserRepository;
-
-    @Autowired
-    private JpaUserMemberRepository jpaUserMemberRepository;
 
     @Autowired
     private UserDataProvider userDataProvider;
@@ -68,20 +61,15 @@ public class JpaGroupDataProvider implements GroupDataProvider {
     }
 
     @Override
-    public GroupDAO findByGroupId(IdWrapper<?> id) throws GroupNotFoundException {
+    public GroupDAO findByGroupId(Long id) throws GroupNotFoundException {
 
-        if (!JpaAccessGroup.AccessGroupId.class.isAssignableFrom(id.getClass())) {
-            throw new IllegalArgumentException("Id value is of the wrong type. " +
-                    "Expected " + JpaAccessGroup.AccessGroupId.class.getCanonicalName() +
-                    " got " + id.getClass().getCanonicalName() + ".");
-        }
-        Optional<JpaAccessGroup> optGroup = jpaAccessGroupRepository.findById((Long) id.getValue());
+        Optional<JpaAccessGroup> optGroup = jpaAccessGroupRepository.findById(id);
 
         if (optGroup.isPresent()) {
             return optGroup.get();
         }
 
-        throw new GroupNotFoundException("id=" + ((Long) id.getValue()).toString());
+        throw new GroupNotFoundException("id=" + id);
     }
 
     @Override
@@ -97,10 +85,10 @@ public class JpaGroupDataProvider implements GroupDataProvider {
     }
 
     @Override
-    public GroupDAO createGroup(String groupName, UserDetails activeUser) throws UserNotFoundException, CryptographyException {
+    public GroupDAO createGroup(String groupName) throws CryptographyException, UserNotFoundException {
         Instant now = Instant.now();
 
-        UserDAO activeUserDAO = userDataProvider.findUserByUserName(activeUser.getUsername());
+        UserDAO activeUserDAO = userDataProvider.findByUserName(authenticationFacade.getAuthentication().getName());
         JpaAccessGroup group = new JpaAccessGroup(groupName);
 
         KeyPair keyPair ;
@@ -117,7 +105,7 @@ public class JpaGroupDataProvider implements GroupDataProvider {
         group.setLastUpdatedByUser(activeUserDAO);
 
         group = jpaAccessGroupRepository.save(group);
-        group.getMembers().add((JpaUserMember) createUserMember(group, keyPair.getPrivate(), activeUserDAO, 0, activeUser));
+        group.getMembers().add( createGroupMember(group, keyPair.getPrivate(), activeUserDAO, 0));
 
         return group;
     }
@@ -125,10 +113,9 @@ public class JpaGroupDataProvider implements GroupDataProvider {
     private JpaGroupMember setContents(JpaGroupMember member,
                                        PrivateKey groupKey,
                                        PublicKey memberKey,
-                                       int permissions,
-                                       UserDetails activeUser) throws UserNotFoundException, CryptographyException {
+                                       int permissions) throws UserNotFoundException, CryptographyException {
         Instant now = Instant.now();
-        UserDAO activeUserDAO = userDataProvider.findUserByUserName(activeUser.getUsername());
+        UserDAO activeUserDAO = userDataProvider.findByUserName(authenticationFacade.getAuthentication().getName());
 
         member.setCreatedStamp(now);
         member.setCreatedByUser(activeUserDAO);
@@ -150,92 +137,77 @@ public class JpaGroupDataProvider implements GroupDataProvider {
     }
 
     @Override
-    public GroupMemberDAO createUserMember(GroupDAO group, PrivateKey groupKey, UserDAO memberUser, int permissions, UserDetails activeUser) throws UserNotFoundException, CryptographyException {
+    public GroupMemberDAO createGroupMember(GroupDAO group,
+                                            PrivateKey groupKey,
+                                            PrincipalDAO memberDAO,
+                                            int permissions)
+            throws UserNotFoundException, CryptographyException {
 
-        JpaUserMember member = new JpaUserMember(new JpaUserMember.UserMemberPK(memberUser, group));
+        JpaGroupMember member = new JpaGroupMember(new JpaGroupMember.GroupMemberPK(memberDAO, group));
+
         try {
-            setContents(member, groupKey, cryptographyService.createRSAPublicKey(memberUser.getPublicKey()), permissions, activeUser );
+            setContents(member, groupKey, cryptographyService.createRSAPublicKey(memberDAO.getPublicKey()), permissions );
         } catch (InvalidKeySpecException | NoSuchAlgorithmException | NoSuchProviderException e) {
             throw new CryptographyException(e);
         }
-        member = jpaUserMemberRepository.save(member);
+
+        member = jpaGroupMemberRepository.save(member);
         group.getMembers().add(member);
-       // jpaAccessGroupRepository.save((JpaAccessGroup)group);
+
         return member;
     }
 
     @Override
-    public GroupMemberDAO createGroupMember(GroupDAO group, PrivateKey groupKey, GroupDAO memberGroup, int permissions, UserDetails activeUser) throws UserNotFoundException, CryptographyException {
-
-        JpaAccessGroupMember member = new JpaAccessGroupMember(new JpaAccessGroupMember.AccessGroupMemberPK(memberGroup, group));
-        try{
-            setContents(member, groupKey, cryptographyService.createRSAPublicKey(memberGroup.getPublicKey()), permissions, activeUser );
-        } catch (InvalidKeySpecException | NoSuchAlgorithmException | NoSuchProviderException e) {
-            throw new CryptographyException(e);
-        }
-        member = jpaAccessGroupMemberRepository.save(member);
-        group.getMemberGroups().add(member);
-        jpaAccessGroupRepository.save((JpaAccessGroup)group);
-        return member;
-    }
-
-    @Override
-    public GroupMemberDAO findGroupMemberById(PrincipalDAO principal, GroupDAO group) throws GroupMemberNotFoundException {
+    public GroupMemberDAO findGroupMemberById(PrincipalDAO principal, GroupDAO group)
+            throws GroupMemberNotFoundException {
 
         GroupMemberDAO member;
-
-        Optional<?> opt;
-
-        if (principal instanceof GroupDAO) {
-            opt = jpaAccessGroupMemberRepository.findById(new JpaAccessGroupMember.AccessGroupMemberPK((GroupDAO) principal, group));
-        } else if (principal instanceof UserDAO) {
-            opt = jpaUserMemberRepository.findById(new JpaUserMember.UserMemberPK((UserDAO) principal, group));
-        } else {
-            throw new IllegalArgumentException("Unknown member class found" + principal.getClass().getName());
-        }
+        Optional<?> opt = jpaGroupMemberRepository.findById(new JpaGroupMember.GroupMemberPK(principal, group));
 
         if (opt.isPresent()) {
             return (GroupMemberDAO) opt.get();
         }
-
         throw new GroupMemberNotFoundException("unknown");
     }
 
     @Override
     public Set<GroupMemberDAO> findGroupMembers(GroupDAO group){
 
-        Set<GroupMemberDAO> members = new HashSet<>();
-
-        members.addAll(jpaAccessGroupMemberRepository.findAllByGroup((JpaAccessGroup) group));
-        members.addAll(jpaUserMemberRepository.findAllByGroup((JpaAccessGroup) group));
-
-        return members;
+        return jpaGroupMemberRepository.findAllByGroupId(group.getId());
     }
 
+    //TODO: remove, see above
     @Override
-    public Set<GroupMemberDAO> findGroupMembersByGroupId(IdWrapper<?> groupId) throws GroupNotFoundException {
+    public Set<GroupMemberDAO> findGroupMembersByGroupId(Long id) throws GroupNotFoundException {
 
-        GroupDAO group = findByGroupId(groupId);
+        GroupDAO group = findByGroupId(id);
         return findGroupMembers(group);
     }
 
     @Override
     public void removeUserMember(GroupMemberDAO member){
-
-        //GroupDAO group = member.getGroup();
-        //group.getMembers().remove(member);
-        //jpaAccessGroupRepository.save((JpaAccessGroup) group);
-        jpaUserMemberRepository.delete((JpaUserMember) member);
-
+        jpaGroupMemberRepository.delete((JpaGroupMember) member);
     }
 
     @Override
     public void removeGroupMember(GroupMemberDAO member){
+        jpaGroupMemberRepository.delete((JpaGroupMember) member);
+    }
 
-        //GroupDAO group = member.getGroup();
-        //group.getMemberGroups().remove(member);
-        //jpaAccessGroupRepository.save((JpaAccessGroup) group);
-        jpaAccessGroupMemberRepository.delete((JpaAccessGroupMember) member);
+    @Override
+    public GroupDAO save(GroupDAO group) throws UserNotFoundException {
 
+        UserDAO activeUserDAO = userDataProvider.findByUserName(authenticationFacade.getAuthentication().getName());
+
+        group.setLastUpdatedByUser(activeUserDAO);
+        group.setLastUpdatedStamp(Instant.now());
+
+        return jpaAccessGroupRepository.save((JpaAccessGroup) group);
+    }
+
+    @Override
+    public void deleteById(Long groupId){
+
+        jpaAccessGroupRepository.deleteById(groupId);
     }
 }

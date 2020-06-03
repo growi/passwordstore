@@ -2,13 +2,13 @@ package dev.growi.passwordstore.server.userdata.dao.exception;
 
 import java.io.IOException;
 
-public class DatasourceExceotion extends IOException {
+public class DatasourceException extends IOException {
 
-    public DatasourceExceotion(){
+    public DatasourceException(){
 
     }
 
-    public DatasourceExceotion(Throwable t){
+    public DatasourceException(Throwable t){
         super(t);
     }
 }

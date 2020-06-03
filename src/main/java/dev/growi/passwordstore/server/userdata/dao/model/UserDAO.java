@@ -9,7 +9,7 @@ import java.util.Collection;
 
 public interface UserDAO extends PrincipalDAO {
 
-    IdWrapper<?> getUserId();
+    Long getId();
 
     String getUserName();
 
@@ -32,7 +32,5 @@ public interface UserDAO extends PrincipalDAO {
     byte[] getPrivateKey();
 
     void setPrivateKey(byte[] privateKey);
-
-    Collection<JpaUserMember> getMemberships();
 
 }

@@ -11,7 +11,7 @@ public interface GroupMemberDAO {
 
     PrincipalDAO getMember();
 
-    void setPrincipal(PrincipalDAO principal);
+    void setMember(PrincipalDAO principal);
 
     int getPermissions();
 

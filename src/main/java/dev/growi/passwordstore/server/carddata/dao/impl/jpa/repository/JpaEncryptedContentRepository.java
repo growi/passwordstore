@@ -1,6 +1,7 @@
 package dev.growi.passwordstore.server.carddata.dao.impl.jpa.repository;
 
+import dev.growi.passwordstore.server.carddata.dao.impl.jpa.model.JpaEncryptedContent;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface JpaEncryptedContent extends JpaRepository<JpaEncryptedContent, Long> {
+public interface JpaEncryptedContentRepository extends JpaRepository<JpaEncryptedContent, Long> {
 }

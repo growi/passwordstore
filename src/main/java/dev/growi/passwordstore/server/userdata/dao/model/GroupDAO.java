@@ -6,16 +6,16 @@ import dev.growi.passwordstore.server.userdata.dao.impl.jpa.model.JpaUserMember;
 import dev.growi.passwordstore.server.userdata.domain.model.IdWrapper;
 
 import java.util.Collection;
+import java.util.Set;
 
 public interface GroupDAO extends PrincipalDAO {
 
-    IdWrapper<?> getGroupId();
+    Long getId();
 
     String getGroupName();
 
     void setGroupName(String groupName);
 
-    Collection<JpaUserMember> getMembers();
+    <T extends GroupMemberDAO> Set<T> getMembers();
 
-    Collection<JpaAccessGroupMember> getMemberGroups();
 }

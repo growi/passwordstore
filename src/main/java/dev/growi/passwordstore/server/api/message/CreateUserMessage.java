@@ -2,7 +2,7 @@ package dev.growi.passwordstore.server.api.message;
 
 import dev.growi.passwordstore.server.userdata.domain.model.User;
 
-public class NewUser {
+public class CreateUserMessage {
 
     private User user;
     private String password;

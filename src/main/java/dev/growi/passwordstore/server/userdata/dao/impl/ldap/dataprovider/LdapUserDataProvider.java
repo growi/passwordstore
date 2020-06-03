@@ -1,6 +1,9 @@
 package dev.growi.passwordstore.server.userdata.dao.impl.ldap.dataprovider;
 
-import dev.growi.passwordstore.server.userdata.dao.exception.CryptographyException;
+import dev.growi.passwordstore.server.shared.dao.exception.EntityNotFoundException;
+import dev.growi.passwordstore.server.shared.dao.model.MonitoredDAO;
+import dev.growi.passwordstore.server.shared.service.exception.CryptographyException;
+import dev.growi.passwordstore.server.userdata.dao.exception.DatasourceException;
 import dev.growi.passwordstore.server.userdata.dao.impl.ldap.configuration.LdapDatasourceCondition;
 import dev.growi.passwordstore.server.userdata.dao.model.GroupMemberDAO;
 import dev.growi.passwordstore.server.userdata.dao.model.UserDAO;
@@ -24,32 +27,62 @@ public class LdapUserDataProvider implements UserDataProvider {
     }
 
     @Override
+    public UserDAO create() throws DatasourceException {
+        return null;
+    }
+
+    @Override
+    public UserDAO findById(Long id) throws EntityNotFoundException {
+        return null;
+    }
+
+    @Override
     public List<UserDAO> findAll(){
         return null;
     }
 
     @Override
-    public UserDAO findUserById(IdWrapper<?> id) throws UserNotFoundException {
+    public UserDAO findById(Long id) throws UserNotFoundException {
         return null;
     }
 
     @Override
-    public UserDAO findUserByUserName(String userName) throws UserNotFoundException {
+    public UserDAO findByUserName(String userName) throws UserNotFoundException {
         return null;
     }
 
     @Override
-    public UserDAO createUser(String userName, String password, UserDetails activeUser) throws UserNotFoundException {
+    public UserDAO create(String userName, String password) throws UserNotFoundException {
         return null;
     }
 
     @Override
-    public Set<GroupMemberDAO> findGroupMembershipsByUserId(IdWrapper<?> userId) throws UserNotFoundException {
+    public Set<GroupMemberDAO> findGroupMembershipsByUserId(Long userId) throws UserNotFoundException {
         return null;
     }
 
     @Override
     public void changePassword(UserDAO user, String oldPassword, String newPassword) throws CryptographyException {
 
+    }
+
+    @Override
+    public UserDAO save(UserDAO user) throws UserNotFoundException {
+        return null;
+    }
+
+    @Override
+    public void deleteById(Long userId) {
+
+    }
+
+    @Override
+    public MonitoredDAO setCreatedInfo(MonitoredDAO monitored) throws UserNotFoundException {
+        return null;
+    }
+
+    @Override
+    public MonitoredDAO setLastUpdatedInfo(MonitoredDAO monitored) throws UserNotFoundException {
+        return null;
     }
 }

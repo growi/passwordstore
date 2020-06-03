@@ -6,7 +6,6 @@ import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Objects;
 
-@Entity(name = "access_group_member")
 public class JpaAccessGroupMember extends JpaGroupMember {
 
     @EmbeddedId

@@ -6,25 +6,41 @@ import dev.growi.passwordstore.server.userdata.dao.model.PrincipalDAO;
 import dev.growi.passwordstore.server.userdata.dao.model.UserDAO;
 
 import javax.persistence.*;
+import java.io.Serializable;
 import java.time.Instant;
+import java.util.Objects;
 
-@MappedSuperclass
+@Entity(name = "group_member")
 public class JpaGroupMember implements GroupMemberDAO {
 
+    public JpaGroupMember() {
+    }
+
+    public JpaGroupMember(JpaGroupMember.GroupMemberPK pk) {
+        this.groupMemberPK = pk;
+    }
+
+    @EmbeddedId
+    private JpaGroupMember.GroupMemberPK groupMemberPK;
+
     @ManyToOne
-    @JoinColumn(name="group_id", insertable=false, updatable=false)
+    @JoinColumn(name = "group_id", insertable = false, updatable = false)
     protected JpaAccessGroup group;
+
+    @ManyToOne
+    @JoinColumn(name = "member_id", insertable = false, updatable = false)
+    private JpaPrincipal member;
 
     private int permissions;
     private Instant createdStamp;
     private Instant lastUpdatedStamp;
 
     @Lob
-    @Column(name = "secret", columnDefinition="BLOB")
+    @Column(name = "secret", columnDefinition = "BLOB")
     private byte[] secret;
 
     @Lob
-    @Column(name = "groupkey", columnDefinition="BLOB")
+    @Column(name = "groupkey", columnDefinition = "BLOB")
     private byte[] groupKey;
 
     @ManyToOne
@@ -35,22 +51,22 @@ public class JpaGroupMember implements GroupMemberDAO {
 
     @Override
     public GroupDAO getGroup() {
-        return this.group;
+        return this.groupMemberPK.group;
     }
 
     @Override
     public void setGroup(GroupDAO group) {
-        this.group = (JpaAccessGroup) group;
+        this.groupMemberPK.group = (JpaAccessGroup) group;
     }
 
     @Override
     public PrincipalDAO getMember() {
-        return null;
+        return this.groupMemberPK.member;
     }
 
     @Override
-    public void setPrincipal(PrincipalDAO principal) {
-
+    public void setMember(PrincipalDAO principal) {
+        this.groupMemberPK.member = (JpaPrincipal) principal;
     }
 
     @Override
@@ -121,5 +137,56 @@ public class JpaGroupMember implements GroupMemberDAO {
     @Override
     public void setLastUpdatedStamp(Instant lastUpdatedStamp) {
         this.lastUpdatedStamp = lastUpdatedStamp;
+    }
+
+    @Embeddable
+    public static class GroupMemberPK implements Serializable {
+
+        @ManyToOne(cascade = CascadeType.PERSIST)
+        @JoinColumn(name = "group_id")
+        private JpaAccessGroup group;
+
+        @ManyToOne(cascade = CascadeType.PERSIST)
+        @JoinColumn(name = "member_id")
+        private JpaPrincipal member;
+
+        public GroupMemberPK() {
+        }
+
+        public GroupMemberPK(PrincipalDAO memberPK, GroupDAO groupPK) {
+            this.member = (JpaPrincipal) memberPK;
+            this.group = (JpaAccessGroup) groupPK;
+        }
+
+        public PrincipalDAO getMember() {
+            return this.member;
+        }
+
+        public void setMember(PrincipalDAO member) {
+            this.member = (JpaPrincipal) member;
+        }
+
+        public GroupDAO getGroup() {
+            return this.group;
+        }
+
+        public void setGroup(GroupDAO group) {
+            this.group = (JpaAccessGroup) group;
+        }
+
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            JpaGroupMember.GroupMemberPK that = (JpaGroupMember.GroupMemberPK) o;
+            return Objects.equals(member, that.getMember()) &&
+                    Objects.equals(group, that.getGroup());
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(member, group);
+        }
     }
 }

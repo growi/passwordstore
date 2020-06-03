@@ -1,5 +1,6 @@
 package dev.growi.passwordstore.server.userdata.dao.exception;
 
+import dev.growi.passwordstore.server.shared.dao.exception.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 

@@ -1,21 +1,25 @@
 package dev.growi.passwordstore.server.userdata.dao.impl.jpa.dataprovider;
 
-import dev.growi.passwordstore.server.userdata.dao.exception.CryptographyException;
+import dev.growi.passwordstore.server.core.authentication.AuthenticationFacade;
+import dev.growi.passwordstore.server.shared.dao.exception.EntityNotFoundException;
+import dev.growi.passwordstore.server.shared.dao.impl.jpa.dataprovider.JpaMonitoreddDataProvider;
+import dev.growi.passwordstore.server.shared.service.exception.CryptographyException;
+import dev.growi.passwordstore.server.userdata.dao.exception.DatasourceException;
 import dev.growi.passwordstore.server.userdata.dao.impl.jpa.configuration.JpaDatasourceCondition;
 import dev.growi.passwordstore.server.userdata.dao.model.GroupMemberDAO;
-import dev.growi.passwordstore.server.userdata.domain.model.IdWrapper;
 import dev.growi.passwordstore.server.userdata.dao.model.UserDAO;
 import dev.growi.passwordstore.server.userdata.dao.provider.UserDataProvider;
 import dev.growi.passwordstore.server.userdata.dao.exception.UserNotFoundException;
 import dev.growi.passwordstore.server.userdata.dao.impl.jpa.model.JpaUser;
 import dev.growi.passwordstore.server.userdata.dao.impl.jpa.repository.JpaUserRepository;
-import dev.growi.passwordstore.server.userdata.domain.service.CryptographyService;
-import dev.growi.passwordstore.server.userdata.domain.service.PasswordGeneratorService;
+import dev.growi.passwordstore.server.shared.service.CryptographyService;
+import dev.growi.passwordstore.server.shared.service.PasswordGeneratorService;
+import dev.growi.passwordstore.server.userdata.domain.exception.InvalidPasswordException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Conditional;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -35,9 +39,12 @@ import java.util.stream.Collectors;
 
 @Service
 @Conditional(JpaDatasourceCondition.class)
-public class JpaUserDataProvider implements UserDataProvider {
+public class JpaUserDataProvider extends JpaMonitoreddDataProvider<Long, UserDAO> implements UserDataProvider {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
+
+    @Autowired
+    private AuthenticationFacade authenticationFacade;
 
     @Autowired
     private JpaUserRepository jpaUserRepository;
@@ -51,12 +58,22 @@ public class JpaUserDataProvider implements UserDataProvider {
     @Autowired
     private PasswordGeneratorService passwordGenerator;
 
+    @Value("${passwordstore.security.admin.password:}")
+    private String configuredAdminPassword;
+
     @Override
     public void checkAdmin() throws CryptographyException {
         Optional<JpaUser> optUser = jpaUserRepository.findByUserName("Admin");
 
+        String password = "";
+        if(!configuredAdminPassword.isEmpty()){
+            password = configuredAdminPassword;
+            logger.warn("\u001B[31mATTENTION: Admin password is stored in property file. This is a security risk! DO NOT do this in a production environment!\033[0m");
+        }
         if (!optUser.isPresent()) {
-            String password = passwordGenerator.generate();
+            if(password.isEmpty()){
+                password = passwordGenerator.generate();
+            }
             createUser("Admin", password, (UserDAO) null);
 
             logger.info("\033[32;1;2mCreated user 'Admin' with password '" + password + "'\033[0m");
@@ -69,23 +86,17 @@ public class JpaUserDataProvider implements UserDataProvider {
     }
 
     @Override
-    public UserDAO findUserById(IdWrapper<?> id) throws UserNotFoundException {
-        if (!JpaUser.UserId.class.isAssignableFrom(id.getClass())) {
-            throw new IllegalArgumentException("Id value is of the wrong type. " +
-                    "Expected " + JpaUser.UserId.class.getCanonicalName() +
-                    " got " + id.getClass().getCanonicalName() + ".");
-        }
-        Optional<JpaUser> optUser = jpaUserRepository.findById((Long) id.getValue());
+    public UserDAO findById(Long id) throws UserNotFoundException {
 
+        Optional<JpaUser> optUser = jpaUserRepository.findById(id);
         if (optUser.isPresent()) {
             return optUser.get();
         }
-
-        throw new UserNotFoundException("id=" + ((Long) id.getValue()).toString());
+        throw new UserNotFoundException("id=" + id);
     }
 
     @Override
-    public UserDAO findUserByUserName(String userName) throws UserNotFoundException {
+    public UserDAO findByUserName(String userName) throws UserNotFoundException {
 
         Optional<JpaUser> optUser = jpaUserRepository.findByUserName(userName);
 
@@ -97,16 +108,19 @@ public class JpaUserDataProvider implements UserDataProvider {
     }
 
     @Override
-    public UserDAO createUser(final String userName, final String password,
-                              UserDetails activeUser) throws UserNotFoundException, CryptographyException {
-
-        UserDAO activeUserDAO = findUserByUserName(activeUser.getUsername());
-
-        return createUser(userName, password, activeUserDAO);
-
+    public UserDAO create() throws DatasourceException {
+        return null;
     }
 
-    private UserDAO createUser(final String userName, final String password, UserDAO activeUserDAO) throws CryptographyException {
+    @Override
+    public UserDAO create(final String userName, final String password) throws UserNotFoundException, DatasourceException {
+
+        UserDAO activeUserDAO = findByUserName(authenticationFacade.getAuthentication().getName());
+
+        return createUser(userName, password, activeUserDAO);
+    }
+
+    private UserDAO createUser(final String userName, final String password, UserDAO activeUserDAO) throws DatasourceException {
         Instant now = Instant.now();
 
         JpaUser user = new JpaUser(userName, passwordEncoder.encode(password));
@@ -119,7 +133,7 @@ public class JpaUserDataProvider implements UserDataProvider {
         } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchProviderException | BadPaddingException |
                 IllegalBlockSizeException | NoSuchPaddingException | IOException | InvalidParameterSpecException |
                 InvalidKeySpecException | InvalidAlgorithmParameterException e) {
-            throw new CryptographyException(e);
+            throw new DatasourceException(new CryptographyException(e));
         }
 
         user.setUserName(userName);
@@ -132,33 +146,52 @@ public class JpaUserDataProvider implements UserDataProvider {
         user.setLastUpdatedByUser(activeUserDAO);
         user.setLastUpdatedStamp(now);
 
-        user = jpaUserRepository.save(user);
+        user = jpaUserRepository.save((JpaUser) user);
 
         return user;
     }
 
     @Override
-    public Set<GroupMemberDAO> findGroupMembershipsByUserId(IdWrapper<?> userId) throws UserNotFoundException {
-        Optional<JpaUser> userDAO = jpaUserRepository.findById(((JpaUser.UserId) userId).getValue());
+    public Set<GroupMemberDAO> findGroupMembershipsByUserId(Long id) throws UserNotFoundException {
+        Optional<JpaUser> userDAO = jpaUserRepository.findById(id);
 
         if (userDAO.isPresent()) {
             return userDAO.get().getMemberships().stream().map(userMember -> (GroupMemberDAO) userMember).collect(Collectors.toSet());
         }
-        throw new UserNotFoundException("userId=" + userId.getValue());
+        throw new UserNotFoundException("id=" + id);
     }
 
     @Override
-    public void changePassword(UserDAO user, String oldPassword, String newPassword) throws CryptographyException {
+    public void changePassword(UserDAO user, String oldPassword, String newPassword) throws CryptographyException, InvalidPasswordException {
 
         try {
             user.setPrivateKey(
                     cryptographyService.pbeEncrypt(newPassword,
                             cryptographyService.pbeDecrypt(oldPassword, user.getPrivateKey())).getEncoded());
-            jpaUserRepository.save((JpaUser) user);
-        } catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeySpecException
+            save(user);
+        }catch(InvalidKeySpecException e){
+            throw new InvalidPasswordException();
+        } catch (NoSuchPaddingException | NoSuchAlgorithmException
                 | InvalidAlgorithmParameterException | InvalidKeyException | BadPaddingException
                 | IllegalBlockSizeException | InvalidParameterSpecException | IOException e) {
             throw new CryptographyException(e);
         }
+    }
+
+    @Override
+    public UserDAO save(UserDAO user) throws UserNotFoundException {
+
+        UserDAO activeUserDAO = findByUserName(authenticationFacade.getAuthentication().getName());
+
+        user.setLastUpdatedByUser(activeUserDAO);
+        user.setLastUpdatedStamp(Instant.now());
+
+        return jpaUserRepository.save((JpaUser) user);
+    }
+
+    @Override
+    public void deleteById(Long userId){
+
+        jpaUserRepository.deleteById(userId);
     }
 }

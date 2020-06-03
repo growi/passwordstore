@@ -1,13 +1,12 @@
 package dev.growi.passwordstore.server.api.controller;
 
 import dev.growi.passwordstore.server.api.service.EncoderService;
-import dev.growi.passwordstore.server.userdata.dao.exception.CryptographyException;
+import dev.growi.passwordstore.server.shared.service.exception.CryptographyException;
 import dev.growi.passwordstore.server.userdata.dao.exception.GroupNotFoundException;
 import dev.growi.passwordstore.server.userdata.dao.exception.UserNotFoundException;
 import dev.growi.passwordstore.server.userdata.domain.model.Group;
 import dev.growi.passwordstore.server.userdata.domain.model.User;
-import dev.growi.passwordstore.server.userdata.domain.service.GroupDataService;
-import dev.growi.passwordstore.server.userdata.domain.service.UserDataService;
+import dev.growi.passwordstore.server.userdata.domain.service.CollectionLoaderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -25,37 +24,35 @@ import java.util.List;
 public class GroupController {
 
     @Autowired
-    UserDataService userDataService;
-
-    @Autowired
-    GroupDataService groupDataService;
-
-    @Autowired
     EncoderService encoderService;
+
+    @Autowired
+    private CollectionLoaderService collectionLoaderService;
 
     @RequestMapping("/api/group")
     public List<Group> getAllGroups(){
-        return groupDataService.getAll();
+        return collectionLoaderService.getAllGroups();
     }
 
     @RequestMapping("/api/group/create/{groupname}")
     public Group createGroup(@PathVariable("groupname") String groupName,
-                             @AuthenticationPrincipal UserDetails userDetails) throws UserNotFoundException, CryptographyException {
+                             @AuthenticationPrincipal UserDetails userDetails)
+            throws UserNotFoundException, CryptographyException {
 
-        return groupDataService.createGroup(groupName, userDetails);
-
+        return Group.create(groupName);
     }
 
     @RequestMapping("/api/group/{groupname}/adduser/{username}/{password}")
     public Group addUserMember(@PathVariable("groupname") String groupName,
                            @PathVariable("username") String userName,
                            @PathVariable("password") String password,
-                           @AuthenticationPrincipal UserDetails userDetails) throws GroupNotFoundException, UserNotFoundException {
+                           @AuthenticationPrincipal UserDetails userDetails)
+            throws GroupNotFoundException, UserNotFoundException, CryptographyException {
 
-        Group group = groupDataService.getByName(groupName);
-        User user = userDataService.getByUserName(userName);
+        Group group = Group.load(groupName);
+        User userMember = User.load(userName);
 
-        // group.addMember(user);
+        group.addMember(userMember, 0, userDetails, password);
         return group;
     }
 
@@ -64,27 +61,26 @@ public class GroupController {
     public Group addGroupMember(@PathVariable("groupname") String groupName,
                          @PathVariable("membername") String memberName,
                          @PathVariable("password") String password,
-                         @AuthenticationPrincipal UserDetails userDetails) throws GroupNotFoundException, UserNotFoundException {
+                         @AuthenticationPrincipal UserDetails userDetails)
+            throws GroupNotFoundException, UserNotFoundException, CryptographyException {
 
-        Group group = groupDataService.getByName(groupName);
-//        User user = userDataService.getByUserName(userName);
+        Group group = Group.load(groupName);
+        Group groupMember = Group.load(memberName);
 
-        // group.addMember(user);
+        group.addMember(groupMember, 0, userDetails, password);
         return group;
     }
 
     @RequestMapping(path = "/api/group/{groupname}", produces = "application/json")
     public Group getGroup(@PathVariable("groupname") String groupName) throws GroupNotFoundException {
 
-        return groupDataService.getByName(groupName);
+        return Group.load(groupName);
     }
 
     @RequestMapping(path = "/api/group/{groupname}/publickey", produces = "text/plain")
     public String getPublicKey(@PathVariable("groupname") String groupName) throws IOException,
             InvalidKeySpecException, NoSuchAlgorithmException, NoSuchProviderException {
 
-        return encoderService.armorKey( groupDataService.getByName(groupName).getPublicKey() );
+        return encoderService.armorKey( Group.load(groupName).getPublicKey() );
     }
-
-
 }

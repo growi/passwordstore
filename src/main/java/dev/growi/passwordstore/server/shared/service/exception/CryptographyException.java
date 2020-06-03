@@ -1,4 +1,4 @@
-package dev.growi.passwordstore.server.shared.exception;
+package dev.growi.passwordstore.server.shared.service.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;

@@ -1,35 +1,32 @@
 package dev.growi.passwordstore.server.carddata.dao.impl.jpa.model;
 
 import dev.growi.passwordstore.server.carddata.dao.model.CardContentDAO;
+import dev.growi.passwordstore.server.carddata.dao.model.ContentWrapper;
 
 import javax.persistence.*;
 
 @Entity( name = "card_content")
-public abstract class JpaEncryptedContent implements CardContentDAO {
+@Inheritance(strategy = InheritanceType.JOINED)
+public abstract class JpaContent implements CardContentDAO {
 
     @Id
     @GeneratedValue(strategy=GenerationType.IDENTITY)
-    private Long cardContentId;
+    private Long id;
 
     @ManyToOne
     private JpaCard card;
 
     private int sequenceNum;
     private String label;
-    private String type;
-
-    @Lob
-    @Column(columnDefinition="BLOB")
-    private byte[] value;
 
     @Override
-    public Long getCardContentId() {
-        return cardContentId;
+    public Long getId() {
+        return id;
     }
 
     @Override
-    public void setCardContentId(Long cardContentId) {
-        this.cardContentId = cardContentId;
+    public void setId(Long id) {
+        this.id = id;
     }
 
     @Override
@@ -63,22 +60,9 @@ public abstract class JpaEncryptedContent implements CardContentDAO {
     }
 
     @Override
-    public String getType() {
-        return type;
-    }
+    public abstract ContentWrapper<?> getContent();
 
     @Override
-    public void setType(String type) {
-        this.type = type;
-    }
+    public abstract void setContent(ContentWrapper<?> contentWrapper);
 
-    @Override
-    public byte[] getValue() {
-        return value;
-    }
-
-    @Override
-    public void setValue(byte[] value) {
-        this.value = value;
-    }
 }
